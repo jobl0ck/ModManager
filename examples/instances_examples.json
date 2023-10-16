@@ -1,0 +1,19 @@
+{
+    "instances": {
+        "uuid": {
+            "name": "Stoneblock 3",
+            "mc_version": {
+                "mc": "1.18.2",
+                "loader": "forge",
+                "loader_version": "40.2.10"
+            },
+            "mp_version": {
+                "name":"1.8.0",
+                "mid": "100",
+                "vid": "id"
+            },
+            "platform": "ftb",
+            "directory": "~/.modmanager/instances/stoneblock-3"
+        }
+    }
+}

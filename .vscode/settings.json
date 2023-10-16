@@ -1,0 +1,11 @@
+{
+    "pylint.path": [
+        "./env/bin/pylint"
+    ],
+    "python.pylintEnabled":true,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false
+}
