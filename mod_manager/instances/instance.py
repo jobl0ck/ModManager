@@ -6,6 +6,7 @@ import subprocess
 from slugify import slugify
 from .. import constants
 from ..downloaders import vanilla
+from ..downloaders.loaders import forge
 from .. import utils
 
 class Platform(Enum):
@@ -21,7 +22,7 @@ class Platform(Enum):
         return obj
 
     # ignore the first param since it's already set by __new__
-    def __init__(self, _: str, display_name: str = None):
+    def __init__(self, _: str, display_name: str = ""):
         self._display_name_ = display_name
 
     def __str__(self):
@@ -44,7 +45,7 @@ class ModLoader(Enum):
         return obj
 
     # ignore the first param since it's already set by __new__
-    def __init__(self, _: str, display_name: str = None):
+    def __init__(self, _: str, display_name: str = ""):
         self._display_name_ = display_name
 
     def __str__(self):
@@ -76,25 +77,25 @@ class MPVersion():
 
 class MCVersion():
 
-    def __init__(self, mc_version : str, loader : str, loader_version : str):
+    def __init__(self, mc_version : str, loader : ModLoader | str, loader_version : str):
         self.mc_version = mc_version
-        self.loader = loader
+        self.loader = loader if loader is ModLoader else ModLoader(str(loader))
         self.loader_version = loader_version
 
     @staticmethod
     def from_dict(data : dict):
         return MCVersion(data["mc"], data["loader"], data["loader_version"])
     @staticmethod
-    def from_values(mc : str, loader : str, loader_version : str):
-        return MCVersion(mc, loader, loader_version)
+    def from_values(mc : str, loader : ModLoader | str, loader_version : str):
+        return MCVersion(mc, loader if loader is ModLoader else ModLoader(str(loader)), loader_version)
     
     def to_dict(self) -> dict:
-        return {"mc": self.mc_version, "loader": self.loader, "loader_version": self.loader_version}
+        return {"mc": self.mc_version, "loader": str(self.loader), "loader_version": self.loader_version}
         
 
 class Instance():
 
-    def __init__(self, uuid : str , data: dict) -> dict:
+    def __init__(self, uuid : str , data: dict):
         self.uuid = uuid
 
         self.mp_name = data["name"]
@@ -168,7 +169,7 @@ class Instance():
 
         match self.mc_version.loader:
             case ModLoader.FORGE:
-                pass
+                forge.download(self.mc_version.loader_version, self.mc_version.mc_version)
             case ModLoader.FABRIC:
                 pass
 

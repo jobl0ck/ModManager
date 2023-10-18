@@ -99,7 +99,7 @@ def __download_fileobj(file, mc_folder, retry=0):
         if error:
             return (error, os.path.join(file["path"], file["name"]), retry, file["size"], False)
     
-    if url == "":
+    if "forgecdn.net/files" in url:
         url = f"https://www.curseforge.com/api/v1/mods/{str(file['curseforge']['project'])[0:4]}/files/{str(file['curseforge']['file'])}/download"
 
     utils.print_with_progress("Retry Download of " + file["path"]+file["name"], __downloads_finished/__to_download, offset=0)
