@@ -56,12 +56,15 @@ def download(mp_version: MPVersion, directory : str):
 def __progress_indicator(future : Future):
     global __lock, __downloads_finished, __to_download
 
-    if not future.result()[0]:
+    result = future.result()
 
-        if future.result()[2] >= 5:
-            raise ValueError("Unable to download " + future.result()[1])
+    if not result[0]:
 
-        utils.print_with_progress(future.result()[1] + utils.Colors.RED + " ERROR" + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+        if result[2] >= 5:
+            raise ValueError("Unable to download " + result[1])
+
+        utils.print_with_progress(result[1] + utils.Colors.RED + " ERROR" + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+        __to_download -= result[result[3]]
         return
     
     if future.exception():
@@ -71,39 +74,38 @@ def __progress_indicator(future : Future):
         sys.exit(1)
 
     with __lock:
-        __downloads_finished += future.result()[3]
+        __downloads_finished += result[3]
 
-        statustext = " SKIPPING" if future.result()[4] else " OK"
+        statustext = " SKIPPING" if result[4] else " OK"
 
-        utils.print_with_progress(future.result()[1] + utils.Colors.GREEN + statustext + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+        utils.print_with_progress(result[1] + utils.Colors.GREEN + statustext + utils.Colors.END, __downloads_finished/__to_download, offset=0)
 
 def __download_fileobj(file, mc_folder, retry=0):
     dest_path = os.path.join(mc_folder, file["path"])
     os.makedirs(dest_path, exist_ok=True)
     destination = dest_path+file["name"]
-    if os.path.exists(destination):
-        with open(destination, "rb") as f:
-            if hashlib.file_digest(f, "sha1").hexdigest() == file["sha1"]:
-                return (True, os.path.join(file["path"], file["name"]), retry, file["size"], True)
 
     url = file["url"]
     if url == "":
         # bypass curseforge bullshit
         # https://edge.forgecdn.net/files/4367/618/AE2-Things-1.0.5.jar
 
-        url = f"https://edge.forgecdn.net/files/{str(file['curseforge']['file'])[0:4]}/{str(file['curseforge']['file'])[4::]}/{file['name']}"
-    utils.print_with_progress("Start Download of " + file["path"]+file["name"], __downloads_finished/__to_download, offset=0)
-    utils.download_file(url, destination)
-    with open(destination, "rb") as f:
-        error = hashlib.file_digest(f, "sha1").hexdigest() == file["sha1"]
-        if error:
-            return (error, os.path.join(file["path"], file["name"]), retry, file["size"], False)
-    
-    if "forgecdn.net/files" in url:
-        url = f"https://www.curseforge.com/api/v1/mods/{str(file['curseforge']['project'])[0:4]}/files/{str(file['curseforge']['file'])}/download"
+        urls = [f"https://edge.forgecdn.net/files/{str(file['curseforge']['file'])[0:4]}/{str(file['curseforge']['file'])[4::]}/{file['name']}",
+                f"https://www.curseforge.com/api/v1/mods/{str(file['curseforge']['project'])[0:4]}/files/{str(file['curseforge']['file'])}/download"]
 
-    utils.print_with_progress("Retry Download of " + file["path"]+file["name"], __downloads_finished/__to_download, offset=0)
-    utils.download_file(url, destination)
-    with open(destination, "rb") as f:
-        error = hashlib.file_digest(f, "sha1").hexdigest() == file["sha1"]
-        return (error, os.path.join(file["path"], file["name"]), retry, file["size"], False)
+        utils.print_with_progress("Start Download of " + file["path"]+file["name"], __downloads_finished/__to_download, offset=0)
+        for u in urls:
+            success, skipped = utils.download_file(url, destination, file["sha1"])
+            if success:
+                return (success, os.path.join(file["path"], file["name"]), retry, file["size"], skipped)
+            elif "edge.forgecdn.net" in u:
+                utils.print_with_progress(f"Download of {file['name']} from {url.split('.')[1:3]} failed, trying fallback if available", __downloads_finished/__to_download, offset=0)
+
+        return (False, os.path.join(file["path"], file["name"]), retry, file["size"], False)
+
+    else:
+        utils.print_with_progress("Start Download of " + file["path"]+file["name"], __downloads_finished/__to_download, offset=0)
+        success, skipped = utils.download_file(url, destination, file["sha1"])
+
+        return (success, os.path.join(file["path"], file["name"]), retry, file["size"], skipped)
+    

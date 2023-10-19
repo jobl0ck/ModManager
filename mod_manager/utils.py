@@ -3,6 +3,7 @@ import math
 import re
 import requests
 import sys
+import hashlib
 from . import constants
 
 def get_json(url, headers=None):
@@ -10,10 +11,30 @@ def get_json(url, headers=None):
         return requests.get(url, headers=headers, timeout=constants.JSON_REQUEST_TIMEOUT).json()
     return requests.get(url, timeout=constants.JSON_REQUEST_TIMEOUT).json()
 
-def download_file(url, dest):
+def download_file(url, dest, sha1 : str|None = None, download_if_not_exists = True):
+    '''
+
+    returns Tuple (had_success, has_skipped)
+
+    '''
+    
+    if download_if_not_exists and sha1:
+        if os.path.exists(dest):
+            with open(dest, "rb") as f:
+                if hashlib.file_digest(f, "sha1").hexdigest() == sha1:
+                    return (True, True)
+
     r = requests.get(url, timeout=constants.JSON_REQUEST_TIMEOUT)
     with open(dest, 'wb') as f:
         f.write(r.content)
+    
+    if sha1:
+        if os.path.exists(dest):
+            with open(dest, "rb") as f:
+                if hashlib.file_digest(f, "sha1").hexdigest() == sha1:
+                    return (True, False)
+        return (False, False)
+    return(True, False)
 
 def print_with_progress(text : str, progress : float, offset=0):
     

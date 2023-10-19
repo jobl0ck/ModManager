@@ -17,14 +17,16 @@ def __find_version(version, manifest_versions):
     for v in manifest_versions:
         if v["id"] == version:
             return v
+    return None
 
 def download(version: str):
     print(version)
 
     versions_manifest = utils.get_json("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
     
-    
-    version_url = __find_version(version, versions_manifest["versions"])["url"]
+    version_manifest_version = __find_version(version, versions_manifest["versions"])
+    if not version_manifest_version: raise ValueError("Invalid version")
+    version_url = version_manifest_version["url"]
 
     os.makedirs(os.path.join(constants.META_PATH, "minecraft/"), exist_ok=True)
     manifest_path = os.path.join(constants.META_PATH, "minecraft/", version + ".json")
@@ -169,30 +171,22 @@ def __download_client(manifest : dict):
 
 def __download_file(url, dest, sha1, size):
     path = os.path.join(constants.LIB_PATH, dest)
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            if hashlib.file_digest(f, "sha1").hexdigest() == sha1:
-                return (True, path, size, True)
-
     dir_path = path.removesuffix(path.split("/")[-1])
     os.makedirs(dir_path, exist_ok=True)
 
-    utils.download_file(url, path)
-
-    with open(path, "rb") as f:
-        if hashlib.file_digest(f, "sha1").hexdigest() != sha1:
-            return (False, path, size, False)
-        else:
-            return (True, path, size, False)
-
+    success, skipped = utils.download_file(url, path)
+    return (success, path, size, skipped)
+    
 def __progress_indicator(future : Future):
     global __lock, __downloads_finished, __to_download
 
-    #print(__downloads_finished/__to_download, __downloads_finished, __to_download)
+    result = future.result()
 
-    if not future.result()[0]:
+    if not result[0]:
 
-        utils.print_with_progress(future.result()[1] + utils.Colors.RED + " ERROR" + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+        utils.print_with_progress(result[1] + utils.Colors.RED + " ERROR" + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+        with __lock:
+            __to_download -= result[result[3]]
         return
     
     if future.exception():
@@ -202,8 +196,8 @@ def __progress_indicator(future : Future):
         sys.exit(1)
 
     with __lock:
-        __downloads_finished += future.result()[2]
+        __downloads_finished += result[2]
 
-        statustext = " SKIPPING" if future.result()[3] else " OK"
+    statustext = " SKIPPING" if result[3] else " OK"
 
-        utils.print_with_progress(future.result()[1] + utils.Colors.GREEN + statustext + utils.Colors.END, __downloads_finished/__to_download, offset=0)
+    utils.print_with_progress(result[1] + utils.Colors.GREEN + statustext + utils.Colors.END, __downloads_finished/__to_download, offset=0)
