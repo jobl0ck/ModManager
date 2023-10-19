@@ -1,4 +1,3 @@
-from enum import Enum
 import os
 from uuid import uuid4
 import json
@@ -8,90 +7,8 @@ from .. import constants
 from ..downloaders import vanilla
 from ..downloaders.loaders import forge
 from .. import utils
-
-class Platform(Enum):
-    FEEDTHEBEAST = "ftb", "Feed The Beast"
-    CURSEFORGE = "curse", "Curseforge"
-    MODRINTH = "modrinth", "Modrinth"
-    CUSTOM = "custom", "Custom"
-    UNKNOWN = "unknown", "Unknown Platform"
-
-    def __new__(cls, *args, **kwds):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
-
-    # ignore the first param since it's already set by __new__
-    def __init__(self, _: str, display_name: str = ""):
-        self._display_name_ = display_name
-
-    def __str__(self):
-        return self.value
-
-    # this makes sure that the display_name is read-only
-    @property
-    def display_name(self):
-        return self._display_name_
-
-class ModLoader(Enum):
-    FORGE = "forge", "Forge"
-    FABRIC = "fabric", "Fabric"
-    VANILLA = "vanilla", "Vanilla"
-    UNKNOWN = "unknown", "Unknown Loader"
-
-    def __new__(cls, *args, **kwds):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
-
-    # ignore the first param since it's already set by __new__
-    def __init__(self, _: str, display_name: str = ""):
-        self._display_name_ = display_name
-
-    def __str__(self):
-        return self.value
-
-    # this makes sure that the display_name is read-only
-    @property
-    def display_name(self):
-        return self._display_name_
-
-
-class MPVersion():
-
-    def __init__(self, name : str, mid : str, vid : str):
-        self.version_name = name
-        self.version_id = vid
-        self.modpack_id = mid
-
-    @staticmethod
-    def from_dict(data: dict):
-        return MPVersion(data["name"], data["mid"], data["vid"])
-    @staticmethod
-    def from_values(name : str, mid : str, vid : str):
-        return MPVersion(name, mid, vid)
-    
-    def to_dict(self) -> dict:
-        return {"name": self.version_name, "mid": self.modpack_id, "vid": self.version_id}
-
-
-class MCVersion():
-
-    def __init__(self, mc_version : str, loader : ModLoader | str, loader_version : str):
-        self.mc_version = mc_version
-        self.loader = loader if loader is ModLoader else ModLoader(str(loader))
-        self.loader_version = loader_version
-
-    @staticmethod
-    def from_dict(data : dict):
-        return MCVersion(data["mc"], data["loader"], data["loader_version"])
-    @staticmethod
-    def from_values(mc : str, loader : ModLoader | str, loader_version : str):
-        return MCVersion(mc, loader if loader is ModLoader else ModLoader(str(loader)), loader_version)
-    
-    def to_dict(self) -> dict:
-        return {"mc": self.mc_version, "loader": str(self.loader), "loader_version": self.loader_version}
-        
+from ..data_structures import MCVersion, MPVersion, Platform, ModLoader
+from ..downloaders import ftb
 
 class Instance():
 
@@ -143,15 +60,16 @@ class Instance():
             
 
     def initialize(self):
+        print("init start")
 
         os.makedirs(self.directory, exist_ok=True)
         os.makedirs(os.path.join(self.directory, "minecraft"), exist_ok=True)
 
         # Download Pack files
 
+        print("pack download start")
         match self.platform:
             case Platform.FEEDTHEBEAST:
-                from ..downloaders import ftb
                 ftb.download(self.mp_version, os.path.join(self.directory, "minecraft"))
                 print("Mod Download Done")
             case Platform.CURSEFORGE:
@@ -166,7 +84,7 @@ class Instance():
         vanilla.download(self.mc_version.mc_version)
 
         # Download ModLoader
-
+        return
         match self.mc_version.loader:
             case ModLoader.FORGE:
                 forge.download(self.mc_version.loader_version, self.mc_version.mc_version)
