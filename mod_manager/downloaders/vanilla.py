@@ -13,8 +13,30 @@ def __find_version(version, manifest_versions):
     return None
 
 def download(version: str):
-    print(version)
+    download_from_manifest(version)
 
+def download_from_manifest(version: str):
+    # download the manifest if it doesnt exist
+    manifest_path = os.path.join(constants.META_PATH, "minecraft", version + ".json")
+    if not os.path.exists(manifest_path):
+        __download_manifest(version)
+    
+    with open(manifest_path, "r") as f:
+        local_manifest = json.load(f)
+    
+    if "libraries" in local_manifest:
+        download_libraries(local_manifest)
+
+    if "assetIndex" in local_manifest:
+        __download_assets(local_manifest)
+
+    if "downloads" in local_manifest:
+        __download_client(local_manifest)
+
+    if "inheritsFrom" in local_manifest:
+        download_from_manifest(local_manifest["inheritsFrom"])
+
+def __download_manifest(version : str):
     versions_manifest = utils.get_json("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
     
     version_manifest_version = __find_version(version, versions_manifest["versions"])
@@ -25,19 +47,8 @@ def download(version: str):
     manifest_path = os.path.join(constants.META_PATH, "minecraft", version + ".json")
     if not os.path.exists(manifest_path):
         download_file(File(version_url, manifest_path))
-    
 
-    with open(manifest_path, "r",encoding="utf-8") as f:
-        local_manifest = json.load(f)
-    
-    __download_libraries(local_manifest)
-
-    __download_assets(local_manifest)
-
-    __download_client(local_manifest)
-
-
-def __download_libraries(manifest : dict):
+def download_libraries(manifest : dict):
 
     files_to_download = []
 
@@ -119,7 +130,7 @@ def __download_assets(manifest : dict):
 
 
 def __download_client(manifest : dict):
-    path = os.path.join(constants.LIB_PATH, "minecraft")
+    path = os.path.join(constants.LIB_PATH, "net", "minecraft", "client")
     os.makedirs(path, exist_ok=True)
     file_path = os.path.join(path, manifest["id"] + ".jar")
     

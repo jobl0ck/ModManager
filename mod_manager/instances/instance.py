@@ -81,10 +81,10 @@ class Instance():
         
         # Download Vanilla
 
-        vanilla.download(self.mc_version.mc_version)
+        #vanilla.download(self.mc_version.mc_version)
 
         # Download ModLoader
-        return
+        
         match self.mc_version.loader:
             case ModLoader.FORGE:
                 forge.download(self.mc_version.loader_version, self.mc_version.mc_version)

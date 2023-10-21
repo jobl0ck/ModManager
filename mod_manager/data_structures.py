@@ -1,5 +1,7 @@
 from enum import Enum
 from typing import List
+import os
+import mod_manager.constants
 
 class Platform(Enum):
     FEEDTHEBEAST = "ftb", "Feed The Beast"
@@ -59,6 +61,7 @@ class MPVersion():
     @staticmethod
     def from_dict(data: dict):
         return MPVersion(data["name"], data["mid"], data["vid"])
+        
     @staticmethod
     def from_values(name : str, mid : str, vid : str):
         return MPVersion(name, mid, vid)
@@ -123,7 +126,7 @@ class Colors:
             del kernel32
 
 class File():
-    def __init__(self, url:str|List[str], dest:str, sha1:str|None = None, size:int = 0) -> None:
+    def __init__(self, url:str|List[str], dest:str, sha1:str|None = None, size:int = 1) -> None:
         if isinstance(url, str):
             self.urls = [url]
         else:
@@ -132,3 +135,7 @@ class File():
         self.dest = dest
         self.sha1 = sha1
         self.size = size
+    
+    @staticmethod
+    def from_lib_dict(dict):
+        return File(dict["url"], os.path.join(mod_manager.constants.LIB_PATH, dict["path"]), dict["sha1"], dict["size"])
