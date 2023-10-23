@@ -4,10 +4,11 @@ from multiprocessing import Pool, Queue, Process
 from .. import utils, constants
 from ..data_structures import Colors, File
 
-__downloaded_files = Queue()
+__downloaded_files: Queue
 
 def download_files(files:List[File]):
-
+    global __downloaded_files
+    __downloaded_files = Queue()
     to_download = 0
     for file in files:
         to_download += file.size
@@ -24,6 +25,8 @@ def download_files(files:List[File]):
     __downloaded_files.put(("kys", "kys", "kys"))
     progress_watcher.join()
     progress_watcher.close()
+
+    __downloaded_files.close()
 
     utils.show_cursor()
     print()
@@ -46,14 +49,14 @@ def __download_file_thread(file :File):
     __downloaded_files.put(result)
 
 def download_file(file : File, url : str|None = None):
-        if url == None:
-            url = file.urls[0]
-        
-        os.makedirs(file.dest.removesuffix(file.dest.split(os.sep)[-1]), exist_ok=True)
+    if url == None:
+        url = file.urls[0]
+    
+    os.makedirs(file.dest.removesuffix(file.dest.split(os.sep)[-1]), exist_ok=True)
 
-        success, skipped = utils.download_file(url, file.dest, file.sha1)
+    success, skipped = utils.download_file(url, file.dest, file.sha1)
 
-        return (success, file, skipped)
+    return (success, file, skipped)
 
 def __progress_indicator(to_download):
     global __downloaded_files
