@@ -1,7 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QWidget, QVBoxLayout
 from PySide6.QtCore import Qt, Slot
-from mod_manager.instances.instance import Instance, MCVersion, MPVersion, Platform
+from mod_manager.instances.instance_factory import create_ftb, create_curseforge
 
 
 class MainWindow(QMainWindow):
@@ -31,6 +31,7 @@ if __name__ == "__main__":
 
     #app.exec()
 
-    instance = Instance.create_instance("Stoneblock 3", MCVersion("1.18.2", "forge", "40.2.10"), MPVersion("1.8.0", "100", "6647"), Platform.FEEDTHEBEAST)
+    #instance = create_ftb("103", "6561")
+    instance = create_curseforge("269708", "3615258")
     instance.launch()
     

@@ -58,3 +58,4 @@ def __get_curse_urls(data : dict[str, str], name : str):
             f"https://www.curseforge.com/api/v1/mods/{str(data['project'])[0:4]}/files/{str(data['file'])}/download"]
             
     return urls
+    

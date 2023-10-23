@@ -2,7 +2,7 @@
     "pylint.path": [
         "./env/bin/pylint"
     ],
-    "python.pylintEnabled":true,
+    "python.pylintEnabled":false,
     "python.testing.pytestEnabled": true,
     "python.testing.pytestArgs": [
         "tests"

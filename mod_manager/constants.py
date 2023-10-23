@@ -16,12 +16,12 @@ INSTANCES_PATH = os.path.join(BASE_PATH, "instances")
 ASSETS_PATH = os.path.join(BASE_PATH, "assets")
 LIB_PATH = os.path.join(BASE_PATH, "libraries")
 META_PATH = os.path.join(BASE_PATH, "meta")
+NATIVES_DIR = os.path.join(BASE_PATH, "natives")
 
 INSTANCES_INDEX = os.path.join(INSTANCES_PATH, "index.json")
 
 THREAD_POOL_WORKERS = 8
 
 # create folders if missing
-for folder in [BASE_PATH, INSTANCES_PATH, ASSETS_PATH, LIB_PATH, META_PATH]:
+for folder in [BASE_PATH, INSTANCES_PATH, ASSETS_PATH, LIB_PATH, META_PATH, os.path.join(META_PATH, "minecraft")]:
     os.makedirs(folder, exist_ok=True)
-os.makedirs(os.path.join(META_PATH, "minecraft"), exist_ok=True)

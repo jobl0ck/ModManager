@@ -5,18 +5,18 @@ from uuid import uuid4
 import json
 import subprocess
 import re
+from hashlib import sha1
 from slugify import slugify
 from .. import constants
 from ..downloaders import vanilla
 from ..downloaders.loaders import forge
 from .. import utils
 from ..data_structures import MCVersion, MPVersion, Platform, ModLoader
-from ..downloaders import ftb
+from ..downloaders import ftb, curseforge
 
 class Instance():
 
-    def __init__(self, uuid : str , data: dict):
-        self.uuid = uuid
+    def __init__(self, data: dict):
 
         self.mp_name = data["name"]
 
@@ -40,10 +40,25 @@ class Instance():
         }
     
     @staticmethod
-    def create_instance(name: str, mc_version: MCVersion, mp_version: MPVersion, platform: Platform):
+    def load(name : str):
+        directory = os.path.join(constants.INSTANCES_PATH, slugify(name))
+        if not os.path.exists(directory): return None
+        with open(os.path.join(directory, "instance.json"), "r", encoding="utf-8") as f:
+            return Instance(json.load(f))
+    
+    @staticmethod
+    def create_instance(name: str, mc_version: MCVersion, mp_version: MPVersion, platform: Platform, load_if_possible:bool = True):
+        if load_if_possible:
+            try:
+                loaded_instance = Instance.load(name)
+                if loaded_instance is not None:
+                    return loaded_instance
+            except FileNotFoundError:
+                pass
+
         directory = os.path.join(constants.INSTANCES_PATH, slugify(name))
 
-        new_instance = Instance(str(uuid4()), {
+        new_instance = Instance({
             "name": name,
             "mc_version": mc_version.to_dict(),
             "mp_version": mp_version.to_dict(),
@@ -56,7 +71,7 @@ class Instance():
         return new_instance
     
     def save(self):
-
+        os.makedirs(self.directory, exist_ok=True)
         with open(os.path.join(self.directory, "instance.json"), "w", encoding="utf-8") as f:
             f.truncate()
             json.dump(self.to_dict(), f)
@@ -74,13 +89,15 @@ class Instance():
         match self.platform:
             case Platform.FEEDTHEBEAST:
                 ftb.download(self.mp_version, os.path.join(self.directory, "minecraft"))
-                print("Mod Download Done")
             case Platform.CURSEFORGE:
+                curseforge.download(self.mp_version, os.path.join(self.directory, "minecraft"))
                 pass
             case Platform.MODRINTH:
                 pass
             case Platform.CUSTOM:
                 pass
+        
+        print("Mod Download Done")
         
         # Download Vanilla
 
@@ -120,8 +137,20 @@ class Instance():
         
         classpath = utils.get_cp_sep().join(classpath)
 
+        if len(jvm_args) == 0:
+            jvm_args = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=51 -XX:G1HeapRegionSize=32M".split(" ")
+
+            jvm_args += [
+                "-Djava.library.path=${natives_directory}",
+                "-Dminecraft.launcher.brand=${launcher_name}",
+                "-Dminecraft.launcher.version=${launcher_version}",
+                "-cp", "${classpath}",
+                "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
+                "-Xss1M"
+            ]
+
         arg_vars = {
-            "natives_directory": constants.LIB_PATH,
+            "natives_directory": os.path.join(constants.NATIVES_DIR, sha1(client_id.encode()).hexdigest()),
             "launcher_name": "Modmanager",
             "launcher_version": "release",
             "classpath": classpath,
@@ -129,7 +158,6 @@ class Instance():
             "library_directory": constants.LIB_PATH,
             "classpath_separator": utils.get_cp_sep(),
             "auth_player_name": "JoBlock",
-            "version_name": client_id,
             "game_directory": os.path.join(self.directory, "minecraft"),
             "assets_root": constants.ASSETS_PATH,
             "assets_index_name": asset_id,
@@ -144,9 +172,10 @@ class Instance():
         jvm_args = self.__parse_arg_vars(jvm_args, arg_vars)
         game_args = self.__parse_arg_vars(game_args, arg_vars)
 
-        # insert values into args
+        #print(jvm_args)
+        #print(game_args)
 
-        subprocess.run(["java"] + jvm_args + [main_class] + game_args, cwd=self.directory)
+        subprocess.run(["java"] + jvm_args + [main_class] + game_args, cwd=os.path.join(self.directory, "minecraft"), check=False)
     
     def __parse_arg_vars(self, args, variables):
         retval = []
@@ -214,9 +243,14 @@ class Instance():
         if "inheritsFrom" in version_manifest:
             jvm_args, game_args, libs, main_class, client_id, asset_id = self.__load_manifest(version_manifest["inheritsFrom"])
         
-        jvm_args += version_manifest["arguments"]["jvm"]
-        game_args += version_manifest["arguments"]["game"]
-        libs += version_manifest["libraries"]
+        if "arguments" in version_manifest:
+            jvm_args += version_manifest["arguments"]["jvm"]
+            game_args += version_manifest["arguments"]["game"]
+        elif "minecraftArguments" in version_manifest:
+            game_args = version_manifest["minecraftArguments"].split(" ")
+
+        if "libraries" in version_manifest:
+            libs += version_manifest["libraries"]
 
         if "mainClass" in version_manifest:
             main_class = version_manifest["mainClass"]

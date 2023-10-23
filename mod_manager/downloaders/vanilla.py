@@ -1,6 +1,8 @@
 import os
 import json
-from threading import Lock
+import sys
+from hashlib import sha1
+import zipfile
 from .. import utils
 from .. import constants
 from .file_downloader import download_file, download_files
@@ -25,7 +27,7 @@ def download_from_manifest(version: str):
         local_manifest = json.load(f)
     
     if "libraries" in local_manifest:
-        download_libraries(local_manifest)
+        download_libraries(local_manifest, version)
 
     if "assetIndex" in local_manifest:
         __download_assets(local_manifest)
@@ -48,9 +50,13 @@ def __download_manifest(version : str):
     if not os.path.exists(manifest_path):
         download_file(File(version_url, manifest_path))
 
-def download_libraries(manifest : dict):
+def download_libraries(manifest : dict, version):
 
     files_to_download = []
+
+    natives = []
+
+    natives_arch = "64" if sys.maxsize > 2**32 else "32" 
 
     for lib in manifest["libraries"]:
         if "rules" in lib:
@@ -84,24 +90,37 @@ def download_libraries(manifest : dict):
                 continue
         
         if "artifact" in lib["downloads"]:
-            files_to_download.append(File(  lib["downloads"]["artifact"]["url"], 
-                                        os.path.join(constants.LIB_PATH, lib["downloads"]["artifact"]["path"]),
-                                        lib["downloads"]["artifact"]["sha1"],
-                                        lib["downloads"]["artifact"]["size"]  ))
+            if lib["downloads"]["artifact"]["url"] != "":
+                files_to_download.append(File(  lib["downloads"]["artifact"]["url"], 
+                                            os.path.join(constants.LIB_PATH, lib["downloads"]["artifact"]["path"]),
+                                            lib["downloads"]["artifact"]["sha1"],
+                                            lib["downloads"]["artifact"]["size"]  ))
         
         if "natives" in lib:
             if utils.get_sys_platform() in lib["natives"]:
                 natives_name = lib["natives"][utils.get_sys_platform()]
-
-                files_to_download.append(File(  lib["downloads"]["classifiers"][natives_name]["url"], 
-                                            os.path.join(constants.LIB_PATH, lib["downloads"]["classifiers"][natives_name]["path"]),
-                                            lib["downloads"]["classifiers"][natives_name]["sha1"],
-                                            lib["downloads"]["classifiers"][natives_name]["size"]  ))
+                if lib["downloads"]["classifiers"][natives_name]["url"] != "":
+                    natives.append(os.path.join(constants.LIB_PATH, lib["downloads"]["classifiers"][natives_name]["path"].replace("${arch}", natives_arch)))
+                    files_to_download.append(File(  lib["downloads"]["classifiers"][natives_name]["url"].replace("${arch}", natives_arch), 
+                                                os.path.join(constants.LIB_PATH, lib["downloads"]["classifiers"][natives_name]["path"].replace("${arch}", natives_arch)),
+                                                lib["downloads"]["classifiers"][natives_name]["sha1"],
+                                                lib["downloads"]["classifiers"][natives_name]["size"]  ))
             else:
                 print("No natives found for " + lib["name"] + " on " + utils.get_sys_platform())
 
     download_files(files_to_download)
     print("\nDownloading Libraries Done")
+    print("unpacking natives")
+
+    natives_path = os.path.join(constants.NATIVES_DIR, sha1(version.encode()).hexdigest())
+    os.makedirs(natives_path, exist_ok=True)
+
+    for lib in natives:
+        with zipfile.ZipFile(lib) as file:
+            file.extractall(natives_path)
+    
+    print("done unpacking")
+
                 
         
 

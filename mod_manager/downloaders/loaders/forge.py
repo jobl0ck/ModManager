@@ -59,37 +59,29 @@ def transform_maven_string(input_string):
 
     return os.path.join(constants.LIB_PATH, path)
 
-def download(forge_version_name, mc_version_name):
+def __download_v0(install_profile, version_manifest, tempdir, installerpath):
+    print("downloading libs")
+    vanilla.download_libraries(install_profile, install_profile["version"])
+    print("downloading version libs")
+    vanilla.download_from_manifest(version_manifest["id"])
 
-    tempdir = tempfile.mkdtemp(suffix="modmanager")
+    for lib in install_profile["libraries"]:
+        lib = lib["downloads"]["artifact"]
+        if lib["url"] == "":
+            with zp.ZipFile(installerpath) as zf:
+                for file in zf.namelist():
+                    if lib["path"] in file:
+                        source = zf.open(file)
+                        target = open(os.path.join(constants.LIB_PATH, lib["path"]), "wb")
+                        with source, target:
+                            shutil.copyfileobj(source, target)
 
-    if re.search(r"(1\.10$|1\.9|1\.8|1\.7|1\.6|1\.5|1\.4|1\.3|1\.2|1\.1$)", mc_version_name) is None:
-        forge_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc_version_name}-{forge_version_name}/forge-{mc_version_name}-{forge_version_name}-installer.jar"
-    else:
-        forge_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc_version_name}-{forge_version_name}-{mc_version_name}/forge-{mc_version_name}-{forge_version_name}-{mc_version_name}-installer.jar"
-
-    installerpath = os.path.join(tempdir, forge_url.split("/")[-1])
-
-    # download the installer jar
-    download_file(File(forge_url, installerpath))
-
-    if not zp.is_zipfile(installerpath): raise zp.BadZipFile("Downloaded installer at " + installerpath + " is not a valid zip file")
-
-    with zp.ZipFile(installerpath) as installer_jar:
-        with installer_jar.open("install_profile.json") as f:
-            install_profile = json.load(f)
-        with installer_jar.open(install_profile["json"].removeprefix(os.sep)) as f:
-            version_manifest = json.load(f)
-            with open(os.path.join(constants.META_PATH, "minecraft", version_manifest["id"] + ".json"), "w") as f:
-                json.dump(version_manifest, f)
-        
-        for file in installer_jar.namelist():
-            if file.startswith("data/"):
-                installer_jar.extract(file, tempdir)
-
+def __download_v1(install_profile, version_manifest, tempdir):
     side = "client"
-
-    vanilla.download_libraries(install_profile)
+    
+    print("downloading libs")
+    vanilla.download_libraries(install_profile, install_profile["version"])
+    print("downloading version libs")
     vanilla.download_from_manifest(version_manifest["id"])
 
     proc_vars = {}
@@ -148,5 +140,38 @@ def download(forge_version_name, mc_version_name):
         
 
 
+def download(forge_version_name, mc_version_name):
+    print("Forge download start")
+    tempdir = tempfile.mkdtemp(suffix="modmanager")
+
+    if re.search(r"(1\.10$|1\.9|1\.8|1\.7|1\.6|1\.5|1\.4|1\.3|1\.2|1\.1$)", mc_version_name) is None:
+        forge_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc_version_name}-{forge_version_name}/forge-{mc_version_name}-{forge_version_name}-installer.jar"
+    else:
+        forge_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc_version_name}-{forge_version_name}-{mc_version_name}/forge-{mc_version_name}-{forge_version_name}-{mc_version_name}-installer.jar"
+
+    installerpath = os.path.join(tempdir, forge_url.split("/")[-1])
+
+    # download the installer jar
+    download_file(File(forge_url, installerpath))
+
+    if not zp.is_zipfile(installerpath): raise zp.BadZipFile("Downloaded installer at " + installerpath + " is not a valid zip file")
+
+    with zp.ZipFile(installerpath) as installer_jar:
+        with installer_jar.open("install_profile.json") as f:
+            install_profile = json.load(f)
+        with installer_jar.open(install_profile["json"].removeprefix(os.sep)) as f:
+            version_manifest = json.load(f)
+            with open(os.path.join(constants.META_PATH, "minecraft", version_manifest["id"] + ".json"), "w") as f:
+                json.dump(version_manifest, f)
+        
+        for file in installer_jar.namelist():
+            if file.startswith("data/"):
+                installer_jar.extract(file, tempdir)
+    
+    if install_profile["spec"] == 0:
+        __download_v0(install_profile, version_manifest, tempdir, installerpath)
+    elif install_profile["spec"] == 1:
+        __download_v1(install_profile, version_manifest, tempdir)
+
     # delete the installer after finishing
-    #shutil.rmtree(tempdir)
+    shutil.rmtree(tempdir)

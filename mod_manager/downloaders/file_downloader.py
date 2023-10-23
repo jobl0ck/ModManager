@@ -20,6 +20,8 @@ def download_files(files:List[File]):
     with Pool(processes=constants.THREAD_POOL_WORKERS) as pool:
         pool.map(__download_file_thread, files)
 
+
+    __downloaded_files.put(("kys", "kys", "kys"))
     progress_watcher.join()
     progress_watcher.close()
 
@@ -59,6 +61,9 @@ def __progress_indicator(to_download):
     while done_downloading<to_download:
 
         success, file, skipped = __downloaded_files.get()
+
+        if success == "kys":
+            break
 
         if not success:
 
