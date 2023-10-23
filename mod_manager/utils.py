@@ -60,3 +60,8 @@ def get_sys_platform():
     if sys.platform == "darwin":
         return "osx"
     return ""
+
+def get_cp_sep():
+    if sys.platform == "win32":
+        return ";"
+    return ":"

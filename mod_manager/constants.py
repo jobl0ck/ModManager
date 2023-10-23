@@ -24,3 +24,4 @@ THREAD_POOL_WORKERS = 8
 # create folders if missing
 for folder in [BASE_PATH, INSTANCES_PATH, ASSETS_PATH, LIB_PATH, META_PATH]:
     os.makedirs(folder, exist_ok=True)
+os.makedirs(os.path.join(META_PATH, "minecraft"), exist_ok=True)

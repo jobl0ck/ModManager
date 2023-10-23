@@ -32,5 +32,5 @@ if __name__ == "__main__":
     #app.exec()
 
     instance = Instance.create_instance("Stoneblock 3", MCVersion("1.18.2", "forge", "40.2.10"), MPVersion("1.8.0", "100", "6647"), Platform.FEEDTHEBEAST)
-    #instance.launch()
+    instance.launch()
     

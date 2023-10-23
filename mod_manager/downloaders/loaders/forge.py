@@ -35,33 +35,29 @@ def __library_to_path(library_name, library_data):
             return lib["downloads"]["artifact"]["path"]
     return None
 
-def transform_maven_string(input_str):
+def transform_maven_string(input_string):
     # de.oceanlabs.mcp:mcp_config:1.18.2-20220404.173914@zip
     # de/oceanlabs/mcp/mcp_config/1.18.2-20220404.173914/mcp_config-1.18.2-20220404.173914.zip
     # de/oceanlabs/mcp/mcp_config/mcp_config-1.18.2-20220404.173914.zip
     # de.oceanlabs.mcp:mcp_config:1.18.2-20220404.173914:mappings-merged@txt
 
-    components = input_str.split(":")
-    group = components[0]
-    artifact = components[1]
-    version = components[2]
+    # Split the input string using ":" and "@" as delimiters
+    parts = input_string.split(":")
+    
+    group, artifact, version = parts[0], parts[1], parts[2]
 
-    print(components)
-    if "@" in version:
-        return os.path.join(constants.LIB_PATH, *group.split("."), artifact, version.split('@')[0],
-                f"{artifact}-{version.split('@')[0]}.{version.split('@')[1]}")
-    else:
-        start = os.path.join(constants.LIB_PATH, *group.split("."), artifact, version,
-                f"{artifact}-{version.split('@')[0]}")
-        if len(components) == 4:
-            if "@" in components[3]:
-                return os.path.join(start, f"{components[3].split('@')[0]}.{components[3].split('@')[1]}")
-            else:
-                return os.path.join(start, f"{components[3].split('@')[0]}")
-        return start
+    path = f"{group.replace('.', os.sep)}{os.sep}{artifact}{os.sep}{version.split('@')[0]}{os.sep}"
 
+    if len(parts) == 4:
+        path += f"{artifact}-{version}-{parts[3]}.jar"
+    elif "@" in parts[2]:
+        version, ext = parts[2].split('@')[0], parts[2].split('@')[1]
 
-    return ""
+        path += f"{artifact}-{version}.{ext}"
+
+    #print(path)
+
+    return os.path.join(constants.LIB_PATH, path)
 
 def download(forge_version_name, mc_version_name):
 
@@ -146,7 +142,7 @@ def download(forge_version_name, mc_version_name):
             if os.path.exists(lpath):
                 classpath.append(lpath)
 
-        classpath = ":".join(classpath)
+        classpath = utils.get_cp_sep().join(classpath)
 
         subprocess.call(["java", "-cp", classpath, __get_main_function(os.path.join(constants.LIB_PATH, path))] + args)
         
